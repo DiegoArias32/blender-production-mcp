@@ -1,0 +1,7 @@
+include LICENSE NOTICE.md PRIVACY.md SECURITY.md CONTRIBUTING.md AGENTS.md
+include README.md README.es.md CHANGELOG.md addon.py uv.lock .python-version
+graft docs
+graft examples
+graft scripts
+graft tests
+global-exclude __pycache__ *.py[cod] *.log *.blend *.blend1

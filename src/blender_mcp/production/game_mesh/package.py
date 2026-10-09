@@ -1,0 +1,81 @@
+"""Immutable local game mesh and neutral future-painter handoff manifests. No exporters."""
+from __future__ import annotations
+from pathlib import Path
+from ..common.m5 import validate_relationship,signature,load
+from ..common.asset_safety import require_mutable_asset,current_asset
+from ..common.storage import write_json,sha256
+from .validation import validate
+
+def prepare(bridge,storage,operation_id,relationship,bake_pair,triangulated_relationship=None,
+            qa_report=None,options=None,dry_run=True):
+    from ..bake.service import load_pair
+    if not isinstance(dry_run,bool):raise ValueError('dry_run must be boolean')
+    relation=validate_relationship(bridge,storage,relationship)
+    pair=load_pair(bridge,storage,bake_pair)
+    if pair['relationship_id']!=relation['relationship_id'] or pair['low']!=relation['target_object']:
+        raise ValueError('PACKAGE_PAIR_MISMATCH: bake LOW must be final game mesh')
+    if (pair['readiness'] not in ('READY','READY_WITH_WARNINGS') or
+        pair.get('report',{}).get('passed') is not True or pair.get('report',{}).get('errors')):
+        raise ValueError('BAKE_NOT_READY: package cannot accept an unready bake pair')
+    tri_path=triangulated_relationship or relationship
+    tri=validate_relationship(bridge,storage,tri_path);tri_sig=signature(bridge,tri['target_object'])
+    if tri['source_object']!=relation['source_object'] or tri_sig['counts']['polygons']!=tri_sig['counts']['triangles']:
+        raise ValueError('TRIANGULATED_EVALUATION_REQUIRED: explicit deterministic triangulation candidate')
+    if tri['target_object']!=relation['target_object']:
+        from ..retopology.helpers import GEOMETRY_RUNTIME
+        from ..common.m5 import m5_read
+        comparison=m5_read(bridge,storage,relationship,GEOMETRY_RUNTIME,
+            'result=m5_compare(low,m5_obj(params["options"]["tri_object"]),params["options"])',
+            dict((options or {}).get('retopology',{}),tri_object=tri['target_object']))
+        if not comparison['passed']:raise ValueError('TRIANGULATED_EVALUATION_MISMATCH: evaluation differs from the final LOW')
+    report=validate(bridge,storage,relationship,options,operation_id+'-qa')
+    if not report['passed'] or report['ignored_gates']:
+        raise ValueError('GAME_MESH_NOT_VALIDATED: package requires every applicable numeric gate')
+    visual={'status':'required','limitations':'Numerical validation does not certify visual quality.'}
+    if qa_report:
+        visual=load(storage,qa_report,category='game_mesh',schema='production.game_mesh_visual_qa.v1')
+        if visual.get('target_fingerprint')!=report['signature']['fingerprint'] or visual.get('source_object')!=relation['source_object']:
+            raise ValueError('STALE_VISUAL_QA: review must match the final candidate and source')
+        if not visual.get('images') or any(not Path(p).is_file() for p in visual['images']):
+            raise ValueError('VISUAL_QA_IMAGES_REQUIRED: review must reference real images')
+    package={'schema':'production.game_mesh_package.v1','asset_id':relation['asset_id'],
+        'geometry_version':report['signature']['geometry_fingerprint'],'relationship':relationship,
+        'source_high':relation['source_object'],'candidate_game_mesh':relation['target_object'],
+        'triangulated_evaluation_mesh':tri['target_object'],'triangulated_relationship':tri_path,
+        'UV_UDIM_manifest':report['subsystems']['uv']['report'],
+        'weight_report':report['subsystems']['weights'],'morph_report':report['subsystems']['morphs'],
+        'material_mapping':report['subsystems']['materials_attributes'],'bake_cage':pair['options'].get('cage_object'),
+        'bake_manifest':bake_pair,'QA_report':report,'visual_QA':visual,
+        'readiness':'READY_NUMERIC_VISUAL_PENDING' if visual.get('status')!='reviewed' else 'READY_WITH_REVIEW_LIMITS',
+        'exports':[],'source_preserved':True,'bake_warnings':pair['report'].get('warnings',[])}
+    manifest=pair['report']['manifest']
+    handoff={'schema':'production.texture_handoff.v1','application':'neutral','asset_id':relation['asset_id'],
+        'geometry_version':package['geometry_version'],'game_mesh':relation['target_object'],
+        'high_mesh':relation['source_object'],'UDIMs':manifest.get('UDIM_tiles',[]),
+        'material_semantics':report['signature']['materials'],'texture_sets':manifest.get('texture_sets',report['signature']['materials']),
+        'bake_maps_expected':['Normal','AO','Curvature','Position','Thickness','WorldSpaceNormal','ID'],
+        'bake_maps_generated':[],'normal_convention':pair['options'].get('normal_convention','OPENGL'),
+        'resolution_targets':pair['options'].get('tile_resolutions',{'default':pair['options'].get('resolution',1024)}),
+        'cage':pair['options'].get('cage_object'),'ray_distances':{k:pair['options'][k] for k in ('front_distance_m','rear_distance_m','max_ray_distance_m')},
+        'limitations':['Expected bake maps are a future contract, not files generated by this package.','No Substance or Unreal invocation.']}
+    if dry_run:return {'status':'warning','dry_run':True,'package_plan':package,'handoff_plan':handoff,'warnings':['No package written. Visual QA remains a separate acceptance step.']}
+    load_pair(bridge,storage,bake_pair)
+    if signature(bridge,relation['target_object'])['fingerprint']!=report['signature']['fingerprint']:
+        raise ValueError('STALE_VALIDATION: game mesh changed before packaging')
+    require_mutable_asset(bridge,storage,'game_mesh_prepare_package')
+    from ..checkpoint import create_checkpoint
+    checkpoint=create_checkpoint(bridge,storage,'Final M5 game mesh package',operation_id,'game_mesh_prepare_package')['manifest']
+    load_pair(bridge,storage,bake_pair)
+    folder=storage.reserve('game_mesh',operation_id)
+    write_json(folder/'package.json',package);write_json(folder/'texture-handoff.json',handoff)
+    write_json(folder/'integrity.json',{name:sha256(folder/name) for name in ('package.json','texture-handoff.json')})
+    return {'status':'success','dry_run':False,'package':str(folder/'package.json'),
+        'handoff':str(folder/'texture-handoff.json'),'checkpoint':checkpoint,'source_intact':True,
+        'readiness':package['readiness'],'warnings':['No production export performed; read the recorded visual limitations.']}
+
+def register(tool,resources):
+    @tool('production.game_mesh_prepare_package')
+    def package_tool(relationship:str,bake_pair:str,triangulated_relationship:str|None=None,
+                     qa_report:str|None=None,options:dict|None=None,dry_run:bool=True,*,_operation_id='')->dict:
+        """Validate a local package and neutral texture handoff; default dry run, no external app or export."""
+        return prepare(*resources(),_operation_id,relationship,bake_pair,triangulated_relationship,qa_report,options,dry_run)

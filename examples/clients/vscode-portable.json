@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "blender-production": {
+      "command": "uv",
+      "args": ["--directory", "C:/tools/blender-production-mcp", "run", "--frozen", "blender-production"],
+      "env": {
+        "BLENDER_HOST": "localhost",
+        "BLENDER_PORT": "9876",
+        "BLENDER_MCP_SAFE_MODE": "1",
+        "DISABLE_TELEMETRY": "true",
+        "BLENDER_PRODUCTION_WORKDIR": "C:/BlenderProduction/work",
+        "PYTHONIOENCODING": "utf-8"
+      }
+    }
+  }
+}

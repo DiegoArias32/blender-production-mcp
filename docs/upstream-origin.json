@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/ahujasid/mcp-for-blender",
+  "commit": "7cc602252386b92829bc7364e3a897253610be38",
+  "package_version": "2.0.3",
+  "addon_protocol": 9,
+  "license": "MIT",
+  "copyright": "Copyright (c) 2025 Siddharth Ahuja",
+  "derived_package": "blender-production-mcp",
+  "derived_version": "0.9.0"
+}
