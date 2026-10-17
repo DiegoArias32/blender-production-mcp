@@ -86,7 +86,7 @@ Then choose your client:
 
 All clients launch **`blender-production` over stdio**. Port `9876` belongs to the Blender addon socket; it is not an HTTP MCP endpoint. Only one client/controller may use a Blender instance at a time.
 
-**New to MCP?** The [installation guide](docs/installation.md) includes uv installation, Windows paths, verification, updates and troubleshooting. There is no PyPI release of this fork in this delivery; install from this repository.
+**New to MCP?** The [installation guide](docs/installation.md) includes uv installation, Windows paths, verification, updates and troubleshooting. There is no PyPI release yet; install from this repository.
 
 ## Try these requests
 
