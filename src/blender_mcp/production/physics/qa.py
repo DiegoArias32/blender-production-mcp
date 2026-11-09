@@ -323,6 +323,10 @@ def pq_collision_frame(points, collider_records, thresholds, sample_radius_m=0.0
                   Vector((0.193,1.0,0.419)).normalized(),
                   Vector((0.337,0.157,1.0)).normalized()]
     epsilon = 0.0000001
+    # Step past each hit before casting again. 1e-7 m re-hit the same face: on a 12-triangle box a ray exceeded 14
+    # crossings and on a segmented body proxy a pendant vertex outside the body voted 'inside' (0.1431 m false
+    # depth, measured in M10 demo C); with 1e-5 m the same rays counted 0 inside. Surface and bbox tolerances keep 1e-7.
+    ray_step = 0.00001
     total = 0
     max_depth = 0.0
     disagreements = 0
@@ -351,7 +355,7 @@ def pq_collision_frame(points, collider_records, thresholds, sample_radius_m=0.0
             votes = []
             exhausted = False
             for direction in directions:
-                vote, truncated = pq_parity(bvh, point, direction, epsilon, min(40002,record['triangle_count']+2))
+                vote, truncated = pq_parity(bvh, point, direction, ray_step, min(40002,record['triangle_count']+2))
                 exhausted = exhausted or truncated
                 if vote is not None:
                     votes.append(vote)

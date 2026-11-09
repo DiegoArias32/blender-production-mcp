@@ -39,7 +39,8 @@ def test_exact_baseline_retained_and_all_35_m8_tools_registered(inventory):
     expected = {'production.'+name for name in M8_NAMES}
     # M9 extends the public catalogue; retain every exact M8 identity and contract.
     from blender_mcp.production.materials.tools import NAMES as M9_NAMES
-    extension = {'production.' + name for name in M9_NAMES}
+    from post_m9_extensions import EXTENSIONS
+    extension = {'production.' + name for name in M9_NAMES} | EXTENSIONS
     assert not (BASELINE_NAMES | expected) & extension
     assert set(inventory) == BASELINE_NAMES | expected | extension
     assert len(set(inventory) - extension) == 236

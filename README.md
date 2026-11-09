@@ -7,19 +7,19 @@
 **A production workflow layer for AI-assisted game art in Blender.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-80cbc4.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/release-0.9.0-blue.svg)](https://github.com/DiegoArias32/blender-production-mcp/releases)
-[![Tools](https://img.shields.io/badge/MCP_tools-274-orange.svg)](docs/tool-catalog.md)
+[![Release](https://img.shields.io/badge/release-0.10.0-blue.svg)](https://github.com/DiegoArias32/blender-production-mcp/releases)
+[![Tools](https://img.shields.io/badge/MCP_tools-319-orange.svg)](docs/tool-catalog.md)
 [![CI](https://github.com/DiegoArias32/blender-production-mcp/actions/workflows/tests.yml/badge.svg)](https://github.com/DiegoArias32/blender-production-mcp/actions/workflows/tests.yml)
 
 [Get started](docs/installation.md) · [Connect your AI client](docs/clients.md) · [Tool catalog](docs/tool-catalog.md) · [Español](README.es.md)
 
 </div>
 
-Blender Production MCP gives an MCP-capable assistant structured workflows for characters, rigs, animation, game meshes, facial performance, secondary motion and PBR materials. It connects **Codex, Claude, Gemini CLI and other local MCP clients** to Blender through the established [mcp-for-blender](https://github.com/ahujasid/mcp-for-blender) addon and transport.
+Blender Production MCP gives an MCP-capable assistant structured workflows for characters, rigs, animation, game meshes, facial performance, secondary motion, PBR materials and multi-character cinematics. It connects **Codex, Claude, Gemini CLI and other local MCP clients** to Blender through the established [mcp-for-blender](https://github.com/ahujasid/mcp-for-blender) addon and transport.
 
 The focus is repeatable work: inspect the source, create a checkpoint, build a separate candidate, measure the result, render comparable previews, and review before acceptance. Your original remains the reference.
 
-> **Public preview · v0.9.0.** Blender execution has been qualified on **Windows 11 + Blender 5.2.1 LTS**, with Python **3.11.16** for the MCP server. Other Blender versions and operating systems require validation. Client setup examples are checked against official documentation; this does not mean every client has been tested end to end. See [validation and limitations](docs/validation.md).
+> **Public preview · v0.10.0.** Blender execution has been qualified on **Windows 11 + Blender 5.2.1 LTS**, with Python **3.11.16** for the MCP server. Other Blender versions and operating systems require validation. Client setup examples are checked against official documentation; this does not mean every client has been tested end to end. See [validation and limitations](docs/validation.md).
 
 ## What you can do
 
@@ -34,6 +34,8 @@ The focus is repeatable work: inspect the source, create a checkpoint, build a s
 | **Body & facial animation** | Structured briefs, blocking, supported biped generation, expressions, gaze, blinks and lip-sync from explicit timing. |
 | **Secondary motion** | Candidate-based spring, cloth and supported hair workflows with cache/bake validation and temporal QA. |
 | **Materials & PBR** | Node/texture inspection, channel and color-space checks, isolated shader candidates, material profiles and controlled lighting comparisons. |
+| **Cinematics & multi-character scenes** | Actor registry, structured briefs, beats and shot plans, owned cameras and cuts, NLA synchronization of existing Actions, props, lighting moods, previs, temporal preview and measured QA on an isolated candidate scene. |
+| **Complex skin support** | Typed UV import to a secondary layer, comparable viewport captures and paged inspection of large material graphs. |
 
 These workflows have explicit compatibility limits. An unknown rig, stale proposal or unsupported simulation produces a report or rejection. **A technical pass is separate from visual approval.**
 
@@ -60,7 +62,7 @@ You need **Blender, Git, uv, and one local MCP client**. Python 3.11 is recommen
 ```sh
 git clone https://github.com/DiegoArias32/blender-production-mcp.git
 cd blender-production-mcp
-git checkout v0.9.0
+git checkout v0.10.0
 uv sync --frozen --python 3.11
 ```
 
@@ -98,6 +100,8 @@ Start in a disposable scene or a deliberately created working copy.
 
 > Inspect this character's material setup, texture dependencies, color spaces and UV/UDIM compatibility. Create a separate material candidate only after a checkpoint, then render matched lighting comparisons for review.
 
+> Create a short cinematic with these two characters using their existing Actions. Register the actors with explicit bones, plan the beats and shots, build a separate candidate scene, sync the clips, add cameras and cuts, run the QA and render a temporal preview for review. Do not modify the source scene or its Actions.
+
 > Plan an attack animation for this rig. First inspect its controls and IK/FK compatibility. Use a separate Action, work through blocking and timing, then evaluate contacts, root motion and temporal previews before acceptance.
 
 The agent should ask for missing intent or mapping decisions when those affect safety or quality. It must not invent anatomy from bone names or claim a render looks good without inspecting it.
@@ -118,7 +122,7 @@ The safe-mode validator is a guardrail, not an operating-system sandbox. Your AI
 ```text
 Your MCP client
   └─ stdio → blender_mcp.production.server
-       └─ production/{animation,rig,character,game_mesh,generation,facial,physics,materials,…}
+       └─ production/{animation,rig,character,game_mesh,generation,facial,physics,materials,cinematic,skin,…}
             └─ common: guards, ledger, checkpoints, storage, bridge
                  └─ upstream BlenderConnection → localhost socket → Blender addon → bpy
 ```
@@ -134,6 +138,7 @@ Production capabilities live in domain modules. The upstream addon, socket conne
 | [Validation and known limits](docs/validation.md) | [Animation workflow](docs/animation-workflow.md) |
 | [Contributing](CONTRIBUTING.md) | [Rig compatibility](docs/rig-compatibility.md) |
 | [Security reporting](SECURITY.md) | [Material QA](docs/material-qa.md) |
+| [Changelog](CHANGELOG.md) | [Cinematic architecture](docs/cinematic-architecture.md) |
 
 Most detailed domain documents currently use Spanish; the installation and client guides are in English, with a [Spanish overview](README.es.md).
 

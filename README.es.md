@@ -7,19 +7,19 @@
 **Herramientas de producción para crear arte de videojuegos en Blender con ayuda de IA.**
 
 [![Licencia: MIT](https://img.shields.io/badge/Licencia-MIT-80cbc4.svg)](LICENSE)
-[![Versión](https://img.shields.io/badge/versión-0.9.0-blue.svg)](https://github.com/DiegoArias32/blender-production-mcp/releases)
-[![Herramientas](https://img.shields.io/badge/herramientas_MCP-274-orange.svg)](docs/tool-catalog.md)
+[![Versión](https://img.shields.io/badge/versión-0.10.0-blue.svg)](https://github.com/DiegoArias32/blender-production-mcp/releases)
+[![Herramientas](https://img.shields.io/badge/herramientas_MCP-319-orange.svg)](docs/tool-catalog.md)
 [![CI](https://github.com/DiegoArias32/blender-production-mcp/actions/workflows/tests.yml/badge.svg)](https://github.com/DiegoArias32/blender-production-mcp/actions/workflows/tests.yml)
 
 [Instalación](docs/installation.md) · [Conecta tu asistente](docs/clients.md) · [Catálogo de herramientas](docs/tool-catalog.md) · [English](README.md)
 
 </div>
 
-Blender Production MCP permite que un asistente compatible con MCP trabaje con personajes, rigs, animaciones, mallas para videojuegos, expresiones faciales, movimiento secundario y materiales PBR mediante operaciones estructuradas. Conecta **Codex, Claude, Gemini CLI y otros clientes MCP locales** con Blender utilizando el addon y la comunicación de [mcp-for-blender](https://github.com/ahujasid/mcp-for-blender).
+Blender Production MCP permite que un asistente compatible con MCP trabaje con personajes, rigs, animaciones, mallas para videojuegos, expresiones faciales, movimiento secundario, materiales PBR y cinemáticas con varios personajes mediante operaciones estructuradas. Conecta **Codex, Claude, Gemini CLI y otros clientes MCP locales** con Blender utilizando el addon y la comunicación de [mcp-for-blender](https://github.com/ahujasid/mcp-for-blender).
 
 La idea es poder revisar cada resultado: inspeccionar el origen, guardar un checkpoint, crear una candidata separada, medirla, generar vistas comparables y evaluarla antes de aceptarla. El original sigue siendo la referencia.
 
-> **Versión preliminar pública · v0.9.0.** La ejecución en Blender se ha validado en **Windows 11 + Blender 5.2.1 LTS**, con Python **3.11.16** para el servidor MCP. Otras versiones de Blender y otros sistemas operativos requieren validación. Los ejemplos de configuración se contrastaron con documentación oficial; eso no significa que todos los clientes se hayan probado de extremo a extremo. Consulta la [validación y sus límites](docs/validation.md).
+> **Versión preliminar pública · v0.10.0.** La ejecución en Blender se ha validado en **Windows 11 + Blender 5.2.1 LTS**, con Python **3.11.16** para el servidor MCP. Otras versiones de Blender y otros sistemas operativos requieren validación. Los ejemplos de configuración se contrastaron con documentación oficial; eso no significa que todos los clientes se hayan probado de extremo a extremo. Consulta la [validación y sus límites](docs/validation.md).
 
 ## Qué puedes hacer
 
@@ -34,6 +34,8 @@ La idea es poder revisar cada resultado: inspeccionar el origen, guardar un chec
 | **Animación corporal y facial** | Briefs estructurados, blocking, generación para bípedos compatibles, expresiones, mirada, parpadeos y sincronización labial con tiempos explícitos. |
 | **Movimiento secundario** | Candidatas de resortes, tela y pelo compatible, con validación de cachés, bake y evaluación temporal. |
 | **Materiales y PBR** | Inspección de nodos y texturas, revisión de canales y espacios de color, shaders candidatos aislados, perfiles de materiales y comparación bajo iluminación controlada. |
+| **Cinemáticas con varios personajes** | Registro de actores, briefs estructurados, beats y planos, cámaras y cortes propios, sincronización NLA de las Actions existentes, props, iluminación por ambiente, previs, preview temporal y QA medida sobre una escena candidata aislada. |
+| **Soporte de piel compleja** | Importación tipada de UV a una capa secundaria, capturas comparables del viewport e inspección paginada de grafos de material grandes. |
 
 Cada flujo tiene límites de compatibilidad explícitos. Un rig desconocido, una propuesta desactualizada o una simulación no compatible producen un informe o un rechazo. **Superar una prueba técnica y aprobar el resultado visual son decisiones distintas.**
 
@@ -60,7 +62,7 @@ Necesitas **Blender, Git, uv y un cliente MCP local**. Recomendamos Python 3.11;
 ```sh
 git clone https://github.com/DiegoArias32/blender-production-mcp.git
 cd blender-production-mcp
-git checkout v0.9.0
+git checkout v0.10.0
 uv sync --frozen --python 3.11
 ```
 
@@ -98,6 +100,8 @@ Empieza en una escena desechable o en una copia de trabajo creada para la tarea.
 
 > Inspecciona los materiales de este personaje, sus dependencias de texturas, espacios de color y compatibilidad UV/UDIM. Guarda un checkpoint antes de crear una candidata de material separada y genera renders con la misma iluminación para compararlos.
 
+> Crea una cinemática corta con estos dos personajes usando sus Actions existentes. Registra los actores con huesos explícitos, planifica beats y planos, monta una escena candidata separada, sincroniza los clips, añade cámaras y cortes, ejecuta la QA y genera un preview temporal para revisarlo. No modifiques la escena fuente ni sus Actions.
+
 > Planifica una animación de ataque para este rig. Primero inspecciona sus controles y compatibilidad IK/FK. Trabaja en una Action separada: blocking, timing y evaluación de contactos, root motion y previews temporales antes de aceptarla.
 
 El agente debe pedir la intención o las decisiones de mapping que falten cuando afecten a la seguridad o a la calidad. No debe deducir anatomía únicamente por nombres de huesos ni afirmar que un render se ve bien sin inspeccionarlo.
@@ -118,7 +122,7 @@ El validador de safe mode es una protección adicional, no una sandbox del siste
 ```text
 Tu cliente MCP
   └─ stdio → blender_mcp.production.server
-       └─ production/{animation,rig,character,game_mesh,generation,facial,physics,materials,…}
+       └─ production/{animation,rig,character,game_mesh,generation,facial,physics,materials,cinematic,skin,…}
             └─ common: protecciones, registro de operaciones, checkpoints, almacenamiento, bridge
                  └─ BlenderConnection upstream → socket localhost → addon de Blender → bpy
 ```
@@ -134,6 +138,7 @@ Las herramientas de producción están organizadas en módulos por área. El add
 | [Validación y límites conocidos](docs/validation.md) | [Flujo de animación](docs/animation-workflow.md) |
 | [Cómo contribuir](CONTRIBUTING.md) | [Compatibilidad de rigs](docs/rig-compatibility.md) |
 | [Reportar problemas de seguridad](SECURITY.md) | [Evaluación de materiales](docs/material-qa.md) |
+| [Historial de cambios](CHANGELOG.md) | [Arquitectura cinemática](docs/cinematic-architecture.md) |
 
 Muchos documentos técnicos por área están en español. Las guías de instalación y clientes están en inglés, con comandos y ejemplos completos. También puedes consultar el [README en inglés](README.md).
 

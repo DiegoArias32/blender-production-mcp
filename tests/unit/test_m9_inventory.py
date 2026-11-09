@@ -30,7 +30,9 @@ def test_exact_236_baseline_identities_and_38_new_units():
     new = {'production.' + name for name in EXPECTED}
     assert len(inherited) == 236 and len(new) == 38
     assert not inherited & new
-    assert set(CATALOGUE) == inherited | new
+    from post_m9_extensions import EXTENSIONS
+    assert not (inherited | new) & EXTENSIONS
+    assert set(CATALOGUE) == inherited | new | EXTENSIONS
 
 
 @pytest.mark.parametrize('name', sorted(EXPECTED))

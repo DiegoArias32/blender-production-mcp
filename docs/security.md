@@ -300,4 +300,34 @@ EEVEE usa su rasterizador real; Cycles sólo usa GPU habilitada en preferencias 
 
 Una review exige artefactos actuales y cuatro pares de iluminación fuente/candidata verificados por hash; aceptar exige además QA técnica vigente. Máximo tres refinamientos por generación, incluyendo intentos fallidos; no crear otra generación para evadir el límite. Un cambio material invalida su review. Timeout/desconexión conserva incertidumbre y bloquea repetición automática, aunque cambie `operation_id`.
 
-Ver [QA de materiales](material-qa.md) para el fallo real de restauración corregido, la corrección de PNG generados negros y los límites de los probes. El [validación pública y límites](validation.md) distingue los probes focales, la regresión final y la cobertura MCP compuesta: el FULL histórico conserva su resultado FAIL; el suplemento verifica las correcciones pendientes. La verificación sobre fixtures no autoriza modificar proyectos reales ni acredita compatibilidad universal.
+Ver [QA de materiales](material-qa.md) para el fallo real de restauración corregido, la corrección de PNG generados negros y los límites de los probes. La [validación pública y sus límites](validation.md) distingue los probes focales, la regresión final y la cobertura MCP compuesta: el FULL histórico conserva su resultado FAIL; el suplemento verifica las correcciones pendientes. La verificación sobre fixtures no autoriza modificar proyectos reales ni acredita compatibilidad universal.
+
+## Protección M10 — cinemáticas, verificación 0.10.0
+
+M10 se autorizó después de M9 junto con el soporte de piel compleja y está verificado sobre fixtures controladas en
+0.10.0 ([validación pública y límites](validation.md)). Los proyectos reales, M11 y los demás MCP siguen requiriendo una
+autorización nueva y concreta.
+
+Toda mutación cinemática pasa por `store.mutate`: estado permitido, guard de assets (MASTER se rechaza antes de crear
+checkpoint; medido por MCP real: ningún checkpoint nuevo y el archivo idéntico), frescura (fuente, candidata, backend,
+actores) y checkpoint antes de escribir. Una operación incierta deja `uncertain_operation` y bloquea las siguientes.
+`operation_id` repetido con la misma petición devuelve el resultado guardado sin volver a Blender (`IDEMPOTENT_REPLAY`);
+con otra petición se rechaza (`IDEMPOTENCY_KEY_CONFLICT`).
+
+La escena fuente no se modifica salvo lo registrado como filas `touched` (deltas, animdata, pistas NLA propias, mute,
+enlaces), que `cinematic_reject` deshace. Medido en cuatro rechazos de las demos (C, D y dos de E; los tres de
+la tanda e2e-4 no tienen verificación por un fallo del arnés) y en el rechazo por MCP: Actions fuente
+con el mismo digest, archivo en disco idéntico, huella de la fuente igual a la del plan y cero datablocks M10. Las
+Actions fuente, la cara M7 y los objetos M8 nunca se editan: M10 los reutiliza por NLA, por copia propia o por pista
+propia, y verifica sus huellas antes de integrarlos (`FACIAL_STALE`, `SECONDARY_NOT_CURRENT`, comprobados con defectos
+inyectados en una instancia propia y restaurados).
+
+Los payloads pasan el validador upstream (safe mode) con un presupuesto propio de 140.000 bytes y 14.000 nodos
+AST. Máximo medido en las demos: 64.800 bytes y 12.048 nodos. No usan `bpy_extras`, lambdas, `__class__` ni `getattr`
+dinámico. Los renders cinemáticos son Workbench (preview) y EEVEE (QA de luz) en la GPU. `cinematic_render_plan`
+sólo planifica Cycles con OptiX configurado: sin él lo rechaza (`CINEMATIC_RENDER_OPTIX_REQUIRED`, comprobado por
+MCP) y nunca planifica CPU.
+
+La revisión visual es obligatoria para aceptar, ligada al `output_dir` y a la huella vigentes. No admite puntuaciones y
+no la escribe ningún script: los runners esperan el archivo de revisión del coordinador. Máximo tres refinamientos;
+el cuarto se rechaza (`REFINEMENT_LIMIT`).

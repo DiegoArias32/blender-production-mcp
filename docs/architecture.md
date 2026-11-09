@@ -563,4 +563,29 @@ La inspección entrega internamente registros limitados y el cliente recibe resu
 
 El renderer usa una escena propia y copia raw estática, sin evaluar la animación como producto final. EEVEE y Cycles informan su backend real; Workbench se rechaza para PBR. Aunque se renderice otro scene, Blender puede reevaluar RNA original: se capturan/restauran conjuntamente objetos/poses/KEY/NLA. Las simulaciones nativas activas se rechazan previamente; no se desactivan para sortear el guard. Los pares usan la misma geometría, cámara y configuración. La review se vincula a hashes y cuatro iluminaciones vigentes; una puntuación automática no sustituye mirar las imágenes.
 
-Ver [inspección](material-inspection.md), [PBR](pbr-workflows.md), [color](texture-color-management.md), [UDIM](material-udim.md), [QA/restauración/backend](material-qa.md) y [contrato neutral](substance-handoff.md). El [validación pública y límites](validation.md) registra la verificación funcional 0.9.0, sus evidencias de alcance explícito y los fallos históricos conservados.
+Ver [inspección](material-inspection.md), [PBR](pbr-workflows.md), [color](texture-color-management.md), [UDIM](material-udim.md), [QA/restauración/backend](material-qa.md) y [contrato neutral](substance-handoff.md). La [validación pública y sus límites](validation.md) registra la verificación funcional 0.9.0, sus evidencias de alcance explícito y los fallos históricos conservados.
+
+## M10 — cinemáticas y producción multipersonaje
+
+`production/cinematic/` es un dominio independiente sobre Bridge, safe mode, asset guard, checkpoints,
+OperationLedger y `animation/generation/store` (categoría `cinematics`). Reutiliza M7 (`facial.service`), M8
+(`physics.service`, `physics.cache`, QA de colisión) y la captura QA, sin editar sus módulos.
+
+| Módulo | Responsabilidad |
+| --- | --- |
+| `model.py` | Vocabularios, validadores, conversión segundos↔frames registrada y nombres propios `M10C_<g8>_v<n>` |
+| `runtime.py` | Runtime común de payloads: candidata, marcas, filas `touched`, captura/restauración, proyección, huellas |
+| `store.py` | Carga/registro, frescura, `mutate`, invalidación de revisión y mallas visibles de un actor |
+| `lifecycle.py` | Plan, creación de la candidata (enlace por colecciones, exclusiones), rechazo con verificación |
+| `registry.py`, `actors.py` | Registro inmutable de actores, inspección, integridad de fuentes |
+| `planning.py`, `planning_handlers.py` | Brief, beats, planos, caminos, interacciones, plan de render |
+| `cameras.py` | Cámaras, animación, foco, cortes, timeline, interacciones y `finalize` → ASSEMBLED |
+| `performance.py` | Staging, clips NLA con `carry_root`, cara M7, secundario M8, props |
+| `lighting.py`, `imaging.py` | Plan/montaje/validación EEVEE de luz; utilidades PNG puras |
+| `analysis.py` | Composición, continuidad, visibilidad, colisiones, contactos y movimiento (TRANSIENT) |
+| `review.py` | Previs, preview temporal, revisión, refinamiento (≤3), informe de calidad, aceptación |
+| `tools.py`, `service.py` | 37 tools requeridas + `cinematic_review` + `cinematic_status`; despacho a handlers |
+
+Lifecycle: `PLANNED → CINEMATIC_CANDIDATE → ASSEMBLED → REVIEWED → ACCEPTED/REJECTED`. La candidata es una escena
+propia con `_SRC` (colecciones fuente enlazadas enteras; las que contienen algo excluido se espejan) y `_CIN` (objetos
+propios). Ver [arquitectura cinemática](cinematic-architecture.md) y la [validación pública y sus límites](validation.md).

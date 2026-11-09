@@ -120,7 +120,9 @@ def test_all_historical_tools_retained_and_m3_output_schemas():
     from blender_mcp.production.materials.tools import NAMES as M9_NAMES
     assert len(M9_NAMES)==38
     assert {'production.'+name for name in M9_NAMES}<=names
-    assert len(names)==54+len(M31_NAMES)+len(M4_NAMES)+len(M5_NAMES)+len(M6_NAMES)+len(M7_NAMES)+len(M8_NAMES)+len(M9_NAMES)
+    from post_m9_extensions import EXTENSIONS
+    assert EXTENSIONS<=names
+    assert len(names)==54+len(M31_NAMES)+len(M4_NAMES)+len(M5_NAMES)+len(M6_NAMES)+len(M7_NAMES)+len(M8_NAMES)+len(M9_NAMES)+len(EXTENSIONS)
     assert all(t.outputSchema for t in tools)
     for t in tools:
         props=t.inputSchema['properties']

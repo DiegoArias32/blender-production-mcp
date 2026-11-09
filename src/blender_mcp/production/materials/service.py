@@ -398,6 +398,19 @@ def dispatch(name, bridge, storage, operation_id, object_name=None, material_nam
             raise ValueError('MATERIAL_PLAN_TARGET_MISMATCH')
         object_name, material_name = plan['object_name'], plan['material_name']
     try:
+        if opts.get('graph_mode', 'full') == 'paged':
+            # Large-graph inspection: statistics over the whole graph, rows for one page only.
+            if name not in inspection.PAGED_TOOLS:
+                raise ValueError('MATERIAL_GRAPH_MODE_UNSUPPORTED: graph_mode=paged is only for material_inspect/material_analyze_nodes')
+            if definition is not None or profile or apply:
+                raise ValueError('MATERIAL_PAGED_INSPECTION_ONLY: paged mode takes no definition, profile or apply')
+            if path:
+                fresh(bridge, storage, plan, state)
+                if state.get('candidate'):
+                    object_name = state['candidate']['candidate_object']
+                    material_name = state['candidate']['candidate_material']
+            raw, settings = inspection.inspect_paged(bridge, object_name, material_name, opts)
+            return inspection.paged_report(raw, settings)
         if name == 'material_create_profile':
             return model.create_profile(profile, overrides=definition)
         if name == 'material_validate_profile':

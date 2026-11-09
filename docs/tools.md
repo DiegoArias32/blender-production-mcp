@@ -1,6 +1,6 @@
-# Tools implementadas — Milestones 1 a 9
+# Tools implementadas — Milestones 1 a 10
 
-La versión local **0.9.0** registra **274 tools verificadas por MCP stdio**: 236 heredadas de M1–M8 y **38 de materiales**. M9 está funcionalmente verificado sobre fixtures controladas; el [validación pública y límites](validation.md) documenta la regresión final y la cobertura MCP compuesta, conservando el FULL histórico fallido y su suplemento PASS. Las cifras por milestone que siguen son históricas y conservan sus contratos.
+La versión local **0.10.0** registra **319 tools** (inventario anunciado por MCP stdio en la calificación M10): 274 de M1–M9, **6 de piel compleja** y **39 cinemáticas** (sección final). Hasta M9 inclusive: la versión 0.9.0 registraba **274 tools verificadas por MCP stdio**: 236 heredadas de M1–M8 y **38 de materiales**. M9 está funcionalmente verificado sobre fixtures controladas; la [validación pública y sus límites](validation.md) documenta la regresión final y la cobertura MCP compuesta, conservando el FULL histórico fallido y su suplemento PASS. Las cifras por milestone que siguen son históricas y conservan sus contratos.
 
 La base M4 de `blender-production` conserva 85 tools: 11 de M1, 18 de M2, 25 de M3, 11 de M3.1
 (estado de operaciones, assets, limpieza y base de seguridad de malla) y 20 de M4 (modelado y
@@ -783,3 +783,51 @@ El estudio compara material fuente/candidato sobre la misma copia raw estática,
 `material_create_handoff` produce el contrato neutral `production.texture_handoff.v2`. `options` admite `bake_pair` M5, `asset_version`, `expected_maps`, `resolution_targets` y `mesh_maps_expected`. Sin bake pair verificado el estado es UNKNOWN; `NOT_READY` se conserva. Los tamaños son objetivos de intercambio, no autorización para generar imágenes. No se abre Painter ni se crean stacks/masks o materiales Unreal.
 
 Referencias: [inspección](material-inspection.md), [PBR](pbr-workflows.md), [color](texture-color-management.md), [normal/tangentes](normal-tangent-workflow.md), [SSS/transmisión/opacity](sss-transmission-opacity.md), [perfiles](material-profiles.md), [piel](skin-organic-materials.md), [hielo/nieve/wetness](ice-snow-wetness.md), [UDIM](material-udim.md), [QA/backend/rendimiento](material-qa.md) y [handoff](substance-handoff.md).
+
+
+## Soporte de piel compleja — 6 tools (0.10.0)
+
+| Unidad | Tools |
+| --- | --- |
+| UV tipada a capa secundaria | `mesh_import_uv_layer`, `mesh_remove_imported_uv_layer` |
+| Viewport comparable | `viewport_inspect` (lectura), `viewport_configure`, `viewport_restore`, `viewport_capture` |
+
+`mesh_import_uv_layer` lee un `.npy` por loop (cabecera analizada sin pickle) y lo lleva a Blender en un EXR float32
+portador; lo escribe en una capa UV nueva, nunca en la activa. Lo verifica con una suma por canal (`math.fsum`) y 1.024 muestras exactas. Las capturas de viewport llevan
+una firma de configuración; dos capturas con la misma firma son comparables. Los grafos de material grandes se leen con
+`material_inspect` / `material_analyze_nodes` y `options.graph_mode="paged"` (páginas de nodos o links, límites
+declarados). Ver [piel compleja](complex-skin-support.md).
+
+## M10 — cinemáticas y producción multipersonaje, 39 tools (0.10.0)
+
+Firma común: `cinematic` (ruta del `plan.json`), `actor`, `object_name`, `brief`, `options`, `apply=false`; las
+operaciones que escriben aceptan `operation_id`. Las READ_ONLY no cambian nada; las TRANSIENT muestrean la candidata
+(`frame_set`) y la restauran (no se anuncian como de solo lectura); el resto escribe o crea artefactos.
+
+| Unidad de trabajo | Tools |
+| --- | --- |
+| Escena y actores | `cinematic_inspect_scene`, `cinematic_register_actor`, `cinematic_inspect_actor` |
+| Brief y planificación | `cinematic_create_brief`, `cinematic_plan_beats`, `cinematic_plan_shots`, `cinematic_plan_actor_paths`, `cinematic_plan_interaction`, `cinematic_render_plan` |
+| Candidata y lifecycle | `cinematic_create_candidate`, `cinematic_status`, `cinematic_verify_integrity`, `cinematic_accept`, `cinematic_reject` |
+| Staging y actuación | `cinematic_stage_actors`, `cinematic_sync_actions` (`carry_root`), `cinematic_integrate_facial`, `cinematic_integrate_secondary`, `cinematic_manage_props` |
+| Cámaras y montaje | `cinematic_create_camera`, `cinematic_configure_camera`, `cinematic_animate_camera`, `cinematic_plan_focus`, `cinematic_create_cuts`, `cinematic_manage_timeline` (`finalize`) |
+| Iluminación | `cinematic_plan_lighting`, `cinematic_setup_lighting`, `cinematic_validate_lighting` |
+| QA (TRANSIENT) | `cinematic_analyze_composition`, `cinematic_validate_continuity`, `cinematic_analyze_visibility`, `cinematic_analyze_actor_collisions`, `cinematic_analyze_contacts`, `cinematic_analyze_motion` |
+| Previs, preview y revisión | `cinematic_generate_previs`, `cinematic_render_preview`, `cinematic_quality_report`, `cinematic_review`, `cinematic_refine` |
+
+READ_ONLY (11): `inspect_scene`, `inspect_actor`, `create_brief`, `plan_beats`, `plan_shots`, `plan_actor_paths`,
+`plan_interaction`, `plan_lighting`, `render_plan`, `verify_integrity`, `status`. TRANSIENT (6): las seis de QA.
+
+Lifecycle: `PLANNED → CINEMATIC_CANDIDATE → ASSEMBLED (manage_timeline finalize) → REVIEWED → ACCEPTED/REJECTED`.
+Cualquier cambio de montaje vuelve a CINEMATIC_CANDIDATE y anula preview, revisión e informe. `cinematic_accept` exige
+una revisión ACCEPT del preview vigente, un informe de calidad que pase sobre la huella actual y la integridad de
+fuentes. El refinamiento admite objetivos medidos (`actor_screen_height`, `headroom_error`, `visibility_min_fraction`,
+`camera_max_jerk`, `max_penetration_m`, `exposure_flicker`) con cambios explícitos de cámara, luz, exposición,
+desplazamiento de actor o de clip. Gasta el ciclo antes de intentarlo, revierte si no mejora y se para tras tres
+ciclos (`REFINEMENT_LIMIT`).
+
+`render_preview` es Workbench en la GPU (temporal completo, cortes por markers, reproductor 1x/½/¼ y APNG).
+`validate_lighting` renderiza EEVEE. `render_plan` sólo planifica: EEVEE con alcance explícito y Cycles sólo con
+OptiX, sin CPU. Ver [arquitectura](cinematic-architecture.md), [lifecycle](cinematic-lifecycle.md),
+[sincronización](multi-character-synchronization.md), [QA visual](cinematic-visual-qa.md) y el
+[validación pública y límites](validation.md).

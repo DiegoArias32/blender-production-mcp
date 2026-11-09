@@ -288,6 +288,9 @@ def test_mcp_annotations_distinguish_readers_from_artifact_writers_and_restore()
     # Material renders persist hashed artifacts and accept operation_id, so they
     # remain writers even though their temporary scene is restored on completion.
     writers|={'production.'+name for name in M9_NAMES if name not in M9_READ_ONLY}
+    from post_m9_extensions import EXTENSION_READERS, EXTENSION_WRITERS
+    readers|=EXTENSION_READERS
+    writers|=EXTENSION_WRITERS
     assert {tool.name for tool in tools} == readers | writers
     from blender_mcp.production.server import TRANSIENT_READERS
     assert TRANSIENT_READERS <= readers

@@ -29,7 +29,7 @@ def mat9_graph(tree,prefix='',ancestors=None,budget=None):
     result={'nodes':[],'links':[],'groups':[],'image_names':[]}
     for node in tree.nodes:
         budget['nodes']+=1;budget['sockets']+=len(node.inputs)+len(node.outputs)
-        if budget['nodes']>256 or budget['sockets']>4096:raise ValueError('MATERIAL_GRAPH_CAPACITY: 256 nodos / 4096 sockets')
+        if budget['nodes']>256 or budget['sockets']>4096:raise ValueError('MATERIAL_GRAPH_CAPACITY: 256 nodos / 4096 sockets; para inspeccionar un grafo mayor usa material_inspect con options.graph_mode="paged"')
         row={'id':prefix+node.name,'name':node.name,'type':node.type,'bl_idname':node.bl_idname,'tree':tree.name,
             'group_path':prefix,'mute':node.mute,'inputs':[mat9_socket(s,i) for i,s in enumerate(node.inputs)],
             'outputs':[mat9_socket(s,i) for i,s in enumerate(node.outputs)]}
@@ -59,6 +59,84 @@ def mat9_graph(tree,prefix='',ancestors=None,budget=None):
             'to_name':link.to_socket.name,'to_index':list(link.to_node.inputs).index(link.to_socket),
             'to_type':link.to_socket.type,'valid':link.is_valid,'muted':link.is_muted})
     return result
+
+def mat9_graph_paged(tree,page,caps):
+    # Large graphs (GlobalSkin exceeded 256 nodes / 4096 sockets) are walked completely for statistics,
+    # but full rows are built only for the requested page and for a bounded set of key nodes, so the
+    # payload stays bounded no matter how big the graph is. Validation is not performed in this mode.
+    stats={'nodes':0,'links':0,'sockets':0,'groups':0,'max_depth':0,'by_type':{},'muted_nodes':0,
+        'invalid_links':0,'muted_links':0,'unconnected_inputs':0}
+    nodes=[];links=[];key=[];groups=[];images=[];seen=set()
+    key_types={'OUTPUT_MATERIAL':8,'BSDF_PRINCIPLED':16,'TEX_IMAGE':64,'NORMAL_MAP':16,'UVMAP':16,'BUMP':16,'DISPLACEMENT':8}
+    key_counts={}
+    stack=[(tree,'',[])]
+    while stack:
+        current,prefix,ancestors=stack.pop(0)
+        if current.name in ancestors:raise ValueError('MATERIAL_GROUP_CYCLE: grupo recursivo '+current.name)
+        if len(ancestors)>caps['depth']:raise ValueError('MATERIAL_GRAPH_CAPACITY: más de '+str(caps['depth'])+' niveles de grupos')
+        stats['max_depth']=max(stats['max_depth'],len(ancestors))
+        for node in current.nodes:
+            stats['nodes']+=1;stats['sockets']+=len(node.inputs)+len(node.outputs)
+            if stats['nodes']>caps['nodes'] or stats['sockets']>caps['sockets']:
+                raise ValueError('MATERIAL_GRAPH_CAPACITY: paged limit '+str(caps['nodes'])+' nodes / '+str(caps['sockets'])+' sockets')
+            stats['by_type'][node.type]=stats['by_type'].get(node.type,0)+1
+            stats['muted_nodes']+=1 if node.mute else 0
+            stats['unconnected_inputs']+=sum(1 for s in node.inputs if not s.is_linked)
+            index=stats['nodes']-1
+            wanted=page['node_offset']<=index<page['node_offset']+page['node_limit']
+            is_key=node.type in key_types and key_counts.get(node.type,0)<key_types[node.type]
+            if wanted or is_key:
+                row={'index':index,'id':prefix+node.name,'name':node.name,'type':node.type,'bl_idname':node.bl_idname,
+                    'tree':current.name,'group_path':prefix,'mute':node.mute}
+                # Socket rows dominate the payload; build them only when asked (and always for principled,
+                # which the classifier reads).
+                if (wanted and page['sockets']) or node.type=='BSDF_PRINCIPLED':
+                    row.update(inputs=[mat9_socket(s,i) for i,s in enumerate(node.inputs)],
+                        outputs=[mat9_socket(s,i) for i,s in enumerate(node.outputs)])
+                if node.type=='OUTPUT_MATERIAL':row.update(active_output=node.is_active_output,target=node.target)
+                if node.type=='BSDF_PRINCIPLED':row['subsurface_method']=node.subsurface_method
+                if node.type=='TEX_IMAGE':row.update(image=node.image.name if node.image else None,interpolation=node.interpolation,extension=node.extension,projection=node.projection)
+                if node.type=='NORMAL_MAP':row.update(space=node.space,uv_map=node.uv_map)
+                if node.type=='UVMAP':row['uv_map']=node.uv_map
+                if wanted:nodes.append(row)
+                if is_key:
+                    key_counts[node.type]=key_counts.get(node.type,0)+1
+                    key.append(row)
+            if node.type=='TEX_IMAGE' and node.image and node.image.name not in seen:
+                seen.add(node.image.name)
+                if len(images)<caps['images']:images.append(node.image.name)
+            if node.type=='GROUP' and node.node_tree:
+                stats['groups']+=1
+                if len(groups)<caps['groups_listed']:
+                    groups.append({'id':prefix+node.name,'tree':node.node_tree.name,'depth':len(ancestors)+1,'animation':mat9_animation(node.node_tree)})
+                stack.append((node.node_tree,prefix+node.name+'/',ancestors+[current.name]))
+        for link in current.links:
+            stats['links']+=1
+            if stats['links']>caps['links']:raise ValueError('MATERIAL_GRAPH_CAPACITY: paged limit '+str(caps['links'])+' links')
+            stats['invalid_links']+=0 if link.is_valid else 1
+            stats['muted_links']+=1 if link.is_muted else 0
+            index=stats['links']-1
+            if page['link_offset']<=index<page['link_offset']+page['link_limit']:
+                links.append({'index':index,'from_node':prefix+link.from_node.name,'from_socket':link.from_socket.identifier,
+                    'from_name':link.from_socket.name,'to_node':prefix+link.to_node.name,'to_socket':link.to_socket.identifier,
+                    'to_name':link.to_socket.name,'valid':link.is_valid,'muted':link.is_muted})
+    return {'stats':stats,'node_page':nodes,'link_page':links,'key_nodes':key,'group_list':groups,
+        'image_names':images,'images_total':len(seen)}
+
+def mat9_material_paged(material_name,object_name,options):
+    obj=bpy.data.objects.get(object_name) if object_name else None
+    if object_name and obj is None:raise ValueError('MATERIAL_OBJECT_MISSING: '+object_name)
+    material=bpy.data.materials.get(material_name) if material_name else obj.active_material if obj else None
+    if material is None:raise ValueError('MATERIAL_NOT_FOUND: selecciona material_name u objeto con material activo')
+    if not material.use_nodes or not material.node_tree:
+        graph={'stats':{'nodes':0,'links':0,'sockets':0,'groups':0,'max_depth':0,'by_type':{}},'node_page':[],'link_page':[],
+            'key_nodes':[],'group_list':[],'image_names':[],'images_total':0}
+    else:graph=mat9_graph_paged(material.node_tree,options['page'],options['caps'])
+    images=[mat9_image(bpy.data.images[n]) for n in graph['image_names'][:100] if bpy.data.images.get(n)]
+    return {'material_name':material.name,'object_name':obj.name if obj else None,'use_nodes':material.use_nodes,
+        'linked':bool(material.library or material.override_library),'animation':mat9_animation(material),
+        'node_animation':mat9_animation(material.node_tree),'renderer':bpy.context.scene.render.engine,
+        'graph_mode':'paged',**graph,'images':images}
 
 def mat9_material(material_name,object_name=None,options=None):
     options=options or {};obj=bpy.data.objects.get(object_name) if object_name else None
@@ -98,11 +176,70 @@ def mat9_material(material_name,object_name=None,options=None):
     return result
 '''
 INSPECT=RUNTIME+'\nresult=mat9_material(params.get("material_name"),params.get("object_name"),params.get("options"))\n'
+INSPECT_PAGED=RUNTIME+'\nresult=mat9_material_paged(params.get("material_name"),params.get("object_name"),params["options"])\n'
+
+# Paged mode walks the whole graph for statistics but materializes only one page of rows. The caps are
+# hard limits on the walk itself (time and memory), not on the response, which stays bounded by the page.
+PAGED_CAPS={'nodes':20000,'sockets':400000,'links':50000,'depth':16,'images':500,'groups_listed':200}
+PAGED_TOOLS={'material_inspect','material_analyze_nodes'}
+
+
+def paged_options(options):
+    settings=dict(options or {})
+    allowed={'graph_mode','limit','offset','link_limit','link_offset','detail'}
+    if set(settings)-allowed:raise ValueError('MATERIAL_PAGED_OPTION_UNSUPPORTED: '+str(sorted(set(settings)-allowed)))
+    page={}
+    detail=settings.get('detail','summary')
+    if detail not in {'summary','nodes','links'}:raise ValueError('MATERIAL_DETAIL_INVALID')
+    # Rows with every socket and value are ~2 KB each; 50 of them keep a page near 100 KB.
+    node_cap=50 if detail=='nodes' else 100
+    for key,default,high in (('limit',min(50,node_cap),node_cap),('offset',0,None),('link_limit',50,200),('link_offset',0,None)):
+        value=settings.get(key,default)
+        if type(value) is not int or value<0 or (high is not None and not 1<=value<=high):
+            raise ValueError('MATERIAL_PAGINATION_INVALID: '+key+(' (max '+str(high)+' with detail='+detail+')' if high else ''))
+        page[key]=value
+    return {'page':{'node_offset':page['offset'],'node_limit':page['limit'],'link_offset':page['link_offset'],
+        'link_limit':page['link_limit'],'sockets':detail=='nodes'},'caps':dict(PAGED_CAPS),'detail':detail}
+
+
+def inspect_paged(bridge,object_name=None,material_name=None,options=None):
+    settings=paged_options(options)
+    raw=bridge.run(INSPECT_PAGED,{'object_name':object_name,'material_name':material_name,'options':settings})
+    raw['images']=textures.dependencies(raw.get('images',[]))
+    return raw,settings
+
+
+def paged_report(raw,settings):
+    stats=raw['stats'];page=settings['page']
+    result={k:raw.get(k) for k in ('material_name','object_name','use_nodes','linked','animation','node_animation','renderer')}
+    result.update(graph_mode='paged',analysis_scope='PAGED_INSPECTION',stats=stats,
+        validation='NOT_PERFORMED: paged mode inspects large graphs; graph/texture/normal validation and candidate '
+                   'construction need the full mode, which stays limited to 256 nodes / 4096 sockets.',
+        nodes=raw['node_page'] if settings['detail'] in {'summary','nodes'} else [],
+        links=raw['link_page'] if settings['detail'] in {'summary','links'} else [],
+        key_nodes=[{k:n.get(k) for k in ('index','id','type','image','space','uv_map','active_output','target','subsurface_method')}
+                   for n in raw['key_nodes']],
+        groups=raw['group_list'],images=[{k:i.get(k) for k in ('name','source','size','colorspace','tiles','missing_files')}
+                                          for i in raw.get('images',[])],
+        images_total=raw['images_total'],images_listed=len(raw['image_names']),
+        pagination={'node_offset':page['node_offset'],'node_limit':page['node_limit'],'nodes_total':stats['nodes'],
+                    'nodes_has_more':page['node_offset']+page['node_limit']<stats['nodes'],
+                    'link_offset':page['link_offset'],'link_limit':page['link_limit'],'links_total':stats['links'],
+                    'links_has_more':page['link_offset']+page['link_limit']<stats['links']},
+        caps=settings['caps'],passed=None,status='success')
+    principled=[n for n in raw['key_nodes'] if n.get('type')=='BSDF_PRINCIPLED']
+    result['classification']=classify({'nodes':principled,'images':raw.get('images',[]),'assigned_objects':[]})
+    if raw['images_total']>len(raw['image_names']):
+        result['status']='warning';result['warnings']=['MATERIAL_IMAGES_TRUNCATED: '+str(raw['images_total'])+' images, '+str(len(raw['image_names']))+' listed']
+    return result
 
 
 def inspect(bridge,object_name=None,material_name=None,options=None):
     settings=dict(options or {})
     allowed={'image_names','uv','limit','offset','detail','manifest','normal_convention','renderer','definition','normal_length_tolerance'}
+    if settings.get('graph_mode','full')!='full':
+        raise ValueError('MATERIAL_GRAPH_MODE_UNSUPPORTED: graph_mode='+str(settings.get('graph_mode'))+' is only for material_inspect/material_analyze_nodes')
+    settings.pop('graph_mode',None)
     if set(settings)-allowed:raise ValueError('MATERIAL_INSPECT_OPTION_UNSUPPORTED: '+str(sorted(set(settings)-allowed)))
     names=settings.get('image_names',[])
     if not isinstance(names,list) or len(names)>100 or any(not isinstance(n,str) or not n for n in names):

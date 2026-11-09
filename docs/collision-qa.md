@@ -14,6 +14,15 @@ Un probe controlado de simplificación (archivo local no distribuido; [validaci�
 
 El método utiliza BVH y tres rayos de paridad por muestra. Decide inside/outside por mayoría y aproxima la profundidad mediante la distancia a la superficie más próxima. Una normal de la cara más cercana, por sí sola, no decide si el punto está dentro. Informa desacuerdos entre rayos y rechaza truncamiento por capacidad.
 
+**Corrección durante M10 (2026-10-23, autorizada por el usuario).** Cada rayo avanzaba 1e-7 m tras un impacto antes de
+volver a lanzarse; con ese paso volvía a chocar con la misma cara. Medido en la demo C de M10: un colgante que nunca entra
+en el proxy segmentado del cuerpo se contaba dentro (14 pares vértice-frame, 0,1431 m) y una caja de 12 triángulos daba
+`COLLISION_RAY_CAPACITY_EXCEEDED` (más de 14 cruces en un sólido convexo). El paso del rayo pasa a 1e-5 m; las
+tolerancias de superficie y de bbox siguen en 1e-7. Tras el cambio: 0 pares en el colgante, la caja sin error de capacidad
+y una penetración real de 12 cm se sigue detectando (469 pares, 0,0896 m). Regresión: `tests/blender/probe_m8_parity_regression.py`.
+El cambio modifica la huella de backend de M8: los planes M8 creados antes quedan `PHYSICS_BACKEND_CHANGED` (sólo
+fixtures); la evidencia histórica de M8 no se reescribe.
+
 | Resultado | Significado |
 | --- | --- |
 | `frames_affected` | Frames enteros muestreados con penetración detectada |

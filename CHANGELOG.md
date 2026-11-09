@@ -1,5 +1,22 @@
 # Changelog
 
+## Public distribution — 0.10.0
+
+- Adds Milestone 10 (cinematics and multi-character production) and complex skin support: **319** MCP tools (274 from 0.9.0, 39 cinematic and 6 skin tools).
+- Same curation as 0.9.0: private milestone reports, baselines, backlogs, local evidence, absolute machine paths and private project names are excluded; their links point to the [validation summary](docs/validation.md).
+- Runtime source under `src/` is the closed 0.10.0 development release; the public documents summarize its qualification and limits.
+
+## 0.10.0 — Milestone 10, cinemáticas y producción multipersonaje, y soporte de piel compleja — 2026-10-27
+
+- Dominio `production/cinematic/`: 39 tools (37 requeridas + `cinematic_review` y `cinematic_status`; 11 de lectura, 6 transitorias y 22 que escriben). Dominio `production/skin/`: 6 tools (UV tipada a capa secundaria y viewport comparable) y grafos de material paginados. 319 tools en total; core upstream, MIT y dependencias runtime conservados.
+- Escena candidata propia con la fuente enlazada por colecciones y filas `touched` reversibles; nunca se escribe una Action fuente ni una escena MASTER. Registro de actores con huesos explícitos, brief con procedencia, beats, planos, rutas, interacciones, cámaras propias (9 movimientos), foco, cortes, timeline, iluminación por mood, previs, preview temporal, QA medida y ciclo de vida con como máximo tres refinamientos.
+- Sincronización NLA multipersonaje con `carry_root` (medido: corrección de 4,0 m en la demo A y de 2,2 m / −90° en la B, error máximo 6e-8 m y 1,6e-6°). Integración de la cara M7 y del secundario M8 aceptados, sin reescribirlos; el secundario se mide en el espacio del hueso padre (0,023 m de movimiento, error 0,0 m).
+- Corrección de paridad M8: el accesorio rígido guarda el balanceo en una Action de objeto y su PC2 tiene 91 muestras idénticas; la QA de colisiones M8 sigue detectando la penetración (guard intacto).
+- Cinco demos aceptadas con revisión real y siete rechazos conservados. MCP en Blender propio en 9877: E 87/87 y C 34/34; las 39 tools cinemáticas llamadas por MCP. Piel: MCP 40/40 y probes 45/45. Probes cinemáticos 783/783. Negativos 20/20 con 51 checks reales.
+- Regresión: 2.698 PASS / 1 skip heredado, 652 tests nuevos y los 2.047 IDs de la línea base presentes. Benchmark de 12 configuraciones: 8,13–35,56 s por configuración, preview 0,018–0,025 s por imagen, respuesta MCP máx. 15.334 B.
+- Corrección de honestidad conservada: varias revisiones declararon reproducción a 1x y 1/4 sin haberla hecho entera; quedó registrado en la evidencia local, sin reescribirlas.
+- [Resumen público de validación](docs/validation.md); el informe de cierre, la evidencia y el backlog se conservan fuera de la distribución pública. No se modificaron assets reales ni se inició M11.
+
 ## Public distribution — 0.9.0
 
 - First public source distribution with the original MIT license and upstream attribution preserved.

@@ -35,7 +35,7 @@ These commands execute the official installer; the linked documentation also exp
 ```sh
 git clone https://github.com/DiegoArias32/blender-production-mcp.git
 cd blender-production-mcp
-git checkout v0.9.0
+git checkout v0.10.0
 uv sync --frozen --python 3.11
 ```
 
@@ -100,7 +100,7 @@ From the checkout, first verify the Python package and MCP stdio transport:
 uv run --frozen python scripts/verify_install.py
 ```
 
-Expected: version `0.9.0`, **274** tools, and a successful MCP initialization. This check does not contact Blender, change scenes or require an API key.
+Expected: version `0.10.0`, **319** tools, and a successful MCP initialization. This check does not contact Blender, change scenes or require an API key.
 
 Next, connect your chosen client and ask:
 

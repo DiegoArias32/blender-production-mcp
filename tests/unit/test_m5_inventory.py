@@ -20,7 +20,9 @@ def test_all_required_m5_high_level_tools_have_structured_contracts():
     from blender_mcp.production.physics.tools import NAMES as M8_NAMES
     from blender_mcp.production.materials.tools import NAMES as M9_NAMES
     assert len(M9_NAMES)==38 and {'production.'+name for name in M9_NAMES}<=set(lookup)
-    assert len(tools)==120+len(M6_NAMES)+len(M7_NAMES)+len(M8_NAMES)+len(M9_NAMES) and len(M5_NAMES)==35
+    from post_m9_extensions import EXTENSIONS
+    assert EXTENSIONS<=set(lookup)
+    assert len(tools)==120+len(M6_NAMES)+len(M7_NAMES)+len(M8_NAMES)+len(M9_NAMES)+len(EXTENSIONS) and len(M5_NAMES)==35
     for name in M5_NAMES:
         t=lookup['production.'+name]
         assert t.outputSchema is not None

@@ -123,6 +123,8 @@ TRANSIENT_READERS = frozenset({
 DESTRUCTIVE = frozenset({"production.restore_checkpoint", "production.cleanup_artifacts"})
 from .physics.tools import TRANSIENT as PHYSICS_TRANSIENT
 TRANSIENT_READERS = TRANSIENT_READERS | frozenset('production.'+name for name in PHYSICS_TRANSIENT)
+from .cinematic.tools import TRANSIENT as CINEMATIC_TRANSIENT
+TRANSIENT_READERS = TRANSIENT_READERS | frozenset('production.'+name for name in CINEMATIC_TRANSIENT)
 
 
 def tool(name, read_only=None, retry_safe=False):
@@ -429,6 +431,12 @@ register_physics_tools(tool, resources)
 
 from .materials.tools import register as register_material_tools
 register_material_tools(tool, resources)
+
+from .skin import register as register_skin_tools
+register_skin_tools(tool, resources)
+
+from .cinematic.tools import register as register_cinematic_tools
+register_cinematic_tools(tool, resources)
 
 
 def main():

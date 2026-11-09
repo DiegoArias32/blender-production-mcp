@@ -93,8 +93,10 @@ def test_required_high_level_inventory_is_35_and_preserves_regression_inventory(
     from blender_mcp.production.facial.tools import NAMES as M7_NAMES
     from blender_mcp.production.physics.tools import NAMES as M8_NAMES
     from blender_mcp.production.materials.tools import NAMES as M9_NAMES
+    from post_m9_extensions import EXTENSIONS
+    assert EXTENSIONS <= names
     # M7/M8/M9 extend the catalogue; all closed M6 contracts remain present.
-    assert len(NAMES) == 35 and len(M7_NAMES) == 46 and len(M8_NAMES)==35 and len(M9_NAMES)==38 and len(names) == 155 + 46 + 35 + 38
+    assert len(NAMES) == 35 and len(M7_NAMES) == 46 and len(M8_NAMES)==35 and len(M9_NAMES)==38 and len(names) == 155 + 46 + 35 + 38 + len(EXTENSIONS)
     assert {'production.'+n for n in NAMES} <= names
     assert {'production.'+n for n in set(M7_NAMES) | M8_NAMES} <= names
     assert {'production.'+n for n in M9_NAMES} <= names

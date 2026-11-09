@@ -15,7 +15,7 @@ async def main():
         local = tool.name.removeprefix("production.")
         groups[local.split("_")[0]].append(tool)
     lines = ["# Production tool catalog", "",
-             f"Generated from the 0.9.0 server registry: **{len(tools)} tools**.", "",
+             f"Generated from the 0.10.0 server registry: **{len(tools)} tools**.", "",
              "Names below are exact MCP names. The client receives each tool's full JSON input schema. "
              "A read-only hint describes the tool annotation, not permission to skip asset or visual-review safeguards. "
              "Some measurements temporarily change and restore scene state.", "",
